@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lupaus</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Connetcion status -->
+    <div id="connectionStatus" class="connection-status disconnected">
+        <span class="status-dot"></span>
+        <span class="status-text">Yhdistetään...</span>
+    </div>
+
+    <div class="container">
+        <header class="game-header">
+            <h1>🃏 Lupaus</h1>
+            <p class="subtitle">Suomalainen korttipeli - Moninpeli</p>
+        </header>
+
+        <!-- Lobby -->
+        <div id="lobbyScreen" class="screen">
+            <div class="lobby-container">
+                <h2 class="screen-title">Odotushuone</h2>
+                
+                <div id="errorMessage" class="error-message hidden"></div>
+
+                <div id="joinForm" class="join-form">
+                    <div class="form-group">
+                        <label for="playerName">
+                            <span class="label-icon">👤</span>
+                            Nimesi:
+                        </label>
+                        <input 
+                            type="text" 
+                            id="playerName" 
+                            placeholder="Syötä nimesi" 
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button class="btn btn-primary" onclick="joinGame()">
+                        <span class="btn-icon">🚪</span>
+                        Liity peliin
+                    </button>
+                </div>
+
+                <div id="lobbyContent" class="hidden">
+                    <div class="info-banner">
+                        <span class="info-icon">ℹ️</span>
+                        Peli alkaa kun 3-5 pelaajaa on liittynyt
+                    </div>
+
+                    <h3 class="section-title">Pelaajat</h3>
+                    
+                    <div class="player-slots" id="playerSlots">
+                        <!-- Made with JavaScript -->
+                    </div>
+
+                    <div class="waiting-message" id="waitingMessage">
+                        <div class="spinner"></div>
+                        <h3>Odotetaan pelaajia...</h3>
+                        <p>Tarvitaan vähintään 3 pelaajaa aloittamiseen</p>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button id="startButton" class="btn btn-success" onclick="startGame()" disabled>
+                            <span class="btn-icon">🎮</span>
+                            <span id="startButtonText">Odotetaan pelaajia...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--Game view-->
+        <div id="gameScreen" class="screen hidden">
+            <div class="game-info-bar">
+                <div class="info-card">
+                    <div class="info-label">Kierros</div>
+                    <div class="info-value" id="currentRound">1</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Kortteja</div>
+                    <div class="info-value" id="cardsInDeal">10</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Aloittaja</div>
+                    <div class="info-value" id="dealer">-</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Lupaukset</div>
+                    <div class="info-value" id="totalBids">0</div>
+                </div>
+            </div>
+
+            <div class="game-area">
+                <aside class="scoreboard-panel">
+                    <h2 class="panel-title">
+                        <span class="title-icon">📊</span>
+                        Pistetaulukko
+                    </h2>
+                    <div id="scoreboardContent" class="scoreboard-content">
+                        <!-- Scores from JavaScript -->
+                    </div>
+                </aside>
+
+                <main class="play-panel">
+                    <div class="phase-indicator" id="phaseIndicator">
+                        <div class="phase-icon">🎲</div>
+                        <div class="phase-info">
+                            <h2 id="phaseTitle">Lupausvaihe</h2>
+                            <p id="phaseDescription">Pelaajat tekevät lupauksensa</p>
+                        </div>
+                    </div>
+
+                    <div id="biddingArea" class="bidding-area">
+                        <!-- Bids made with scripts -->
+                    </div>
+                    <div id="playArea" class="hidden">
+                        <div id="gameStatus" class="game-status">
+                        </div>
+
+                        <!-- Player hand -->
+                        <div class="hand-section">
+                            <h3 class="section-title">
+                                <span class="title-icon">🎴</span>
+                                Sinun korttisi
+                            </h3>
+                            <div id="playerHand" class="cards-container">
+                                <!-- made with JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="table-section">
+                            <h3 class="section-title">
+                                <span class="title-icon">🎯</span>
+                                Pöydällä
+                            </h3>
+                            <div id="trickCards" class="trick-cards">
+                                <!-- Made with JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Round score -->
+                    <div id="roundResults" class="results-panel hidden">
+                        <div class="results-header">
+                            <h3 class="section-title">
+                                <span class="title-icon">🏆</span>
+                                Kierroksen tulokset
+                            </h3>
+                        </div>
+                        <div id="resultsContent" class="results-content">
+                            <!-- Scores made with JavaScript -->
+                        </div>
+                        <button class="btn btn-primary" onclick="nextRound()">
+                            <span class="btn-icon">▶️</span>
+                            Seuraava kierros
+                        </button>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- End view -->
+        <div id="finalScreen" class="screen hidden">
+            <div class="final-container">
+                <div class="final-header">
+                    <div class="trophy-icon">🏆</div>
+                    <h2 class="screen-title">Peli päättyi!</h2>
+                </div>
+                
+                <div class="final-scores" id="finalScores">
+                    <!-- Final score made with JavaScript -->
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <span class="btn-icon">🔄</span>
+                        Pelaa uudelleen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Break-OVERLAY -->
+        <div id="pauseOverlay" class="pause-overlay hidden">
+            <div class="pause-content">
+                <div class="pause-icon">⏸️</div>
+                <h2>Peli tauolla</h2>
+                <p id="pauseReason">Pelaaja irtosi - odotetaan...</p>
+                <div class="pause-timer">
+                    <div class="timer-circle">
+                        <span id="pauseTimeRemaining">120</span>
+                    </div>
+                    <p>sekuntia jäljellä</p>
+                </div>
+                <div class="pause-info">
+                    <p>⏱️ Peli jatkuu automaattisesti kun kaikki pelaajat palaavat</p>
+                    <p>⚠️ Jos aika loppuu, peli päättyy</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO ja pelin logiikka -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="./scripts/main.js"></script>
+</body>
+</html>
