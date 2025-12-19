@@ -51,7 +51,7 @@ export function renderBiddingArea() {
                     ` : ''}
                 ` : `
                     <div class="bid-waiting">
-                        ${isCurrentBidder ? '⏳ Vuorossa...' : '⏱️ Odottaa...'}
+                        ${isCurrentBidder ? '⏱️ Odottaa...' : '⏱️ Odottaa...'}
                     </div>
                 `}
             ` : `

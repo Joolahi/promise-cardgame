@@ -1,15 +1,17 @@
 // LocalStorage control
 export function getOrCreateSessionId() {
     let sessionId = localStorage.getItem('lupaus_sessionId');
-
     if (!sessionId) {
-        sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        if (window.crypto && window.crypto.randomUUID) {
+            sessionId = window.crypto.randomUUID();
+        } else {
+            sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`;
+        }
         localStorage.setItem('lupaus_sessionId', sessionId);
         console.log('🆔 Luotiin uusi session ID:', sessionId);
     } else {
         console.log('🆔 Käytetään olemassa olevaa session ID:', sessionId);
     }
-
     return sessionId;
 }
 

@@ -1,7 +1,7 @@
 /**
  * GameRoom.js - Manages game room state and functionality
  */
-
+const crypto = require('crypto')
 const Deck = require('./Deck');
 const Rules = require('./Rules');
 const ScoreCalculator = require('./ScoreCalculator');
@@ -30,10 +30,10 @@ class GameRoom {
         this.scores = [];
         this.hands = [];
 
-        this.disconnectedPlayers = new Map(); // playerIndex -> { playerName, disconnectTime, timeoutId }
+        this.disconnectedPlayers = new Map();
         this.isPaused = false;
         this.pauseReason = '';
-        this.RECONNECT_TIMEOUT = 120000; // 2 minutes in milliseconds
+        this.RECONNECT_TIMEOUT = 120000;
     }
 
     // Player management
@@ -52,7 +52,7 @@ class GameRoom {
             playerName,
             playerIndex: this.players.length,
             ready: false,
-            sessionId: sessionId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            sessionId: sessionId || crypto.randomUUID()
         };
 
         this.players.push(player);
@@ -67,18 +67,15 @@ class GameRoom {
 
         const player = this.players[index];
         
-        // Dont remove yet!
         if (this.gameStarted && !this.isPaused) {
             console.log(`⚠️ Pelaaja ${player.playerName} irtosi pelistä - annetaan 2 min aikaa palata`);
             
-            // tag as a disconnected
             this.disconnectedPlayers.set(index, {
                 playerName: player.playerName,
                 disconnectTime: Date.now(),
                 timeoutId: null
             });
             
-            // Set game to pause
             this.pauseGame(`Pelaaja ${player.playerName} katkaisi yhteyden. Odotetaan 2 minuuttia...`);
             
             return { 
@@ -137,7 +134,6 @@ class GameRoom {
         const disconnectedInfo = this.disconnectedPlayers.get(playerIndex);
         
         if (!disconnectedInfo) {
-            // Player in the game update socket id
             player.socketId = newSocketId;
             return { 
                 success: true, 
@@ -191,6 +187,7 @@ class GameRoom {
                 clearTimeout(info.timeoutId);
             }
         });
+        this.disconnectedPlayers.clear();
         
         this.phase = 'aborted';
         this.pauseReason = `Peli keskeytettiin: ${disconnectedInfo.playerName} ei palannut ajoissa`;
@@ -200,7 +197,7 @@ class GameRoom {
         return this.players.find(p => p.socketId === socketId);
     }
 
-    // Stating game
+    // Starting game
 
     canStartGame() {
         return Rules.isValidPlayerCount(this.players.length, this.minPlayers, this.maxPlayers) 
@@ -214,7 +211,6 @@ class GameRoom {
 
         this.gameStarted = true;
         
-        // Random dealer for the 1st round
         this.dealerIndex = Math.floor(Math.random() * this.players.length);
         console.log(`🎲 Aloittaja valittu satunnaisesti: ${this.players[this.dealerIndex].playerName} (index ${this.dealerIndex})`);
         
@@ -243,10 +239,8 @@ class GameRoom {
     startNewRound() {
         this.currentRound++;
         if (this.currentRound <= this.startCards) {
-            //10 -> 1
             this.cardsThisRound = this.startCards - this.currentRound + 1;
         } else {
-            //2 -> 10
             const ascending = this.currentRound - this.startCards;
             this.cardsThisRound = ascending + 1;
         }
@@ -263,11 +257,11 @@ class GameRoom {
         this.leadSuit = null;
 
         this.hands = Deck.dealCards(this.players.length, this.cardsThisRound);
-        if (this.currentRound > 1) {
+        if (this.currentRound !== 1) {
             this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
             console.log(`🔄 Uusi dealer: ${this.players[this.dealerIndex].playerName} (index ${this.dealerIndex})`);
         }
-                this.currentPlayerIndex = this.dealerIndex;
+        this.currentPlayerIndex = this.dealerIndex;
         console.log(`📢 Kierros ${this.currentRound}: Lupaukset alkavat pelaajasta ${this.players[this.dealerIndex].playerName}`);
     }
 
@@ -298,6 +292,7 @@ class GameRoom {
         if (playerIndex !== expectedPlayerIndex) {
             return { success: false, message: 'Ei sinun vuorosi' };
         }
+        
         const isLastBidder = currentBids.length === this.players.length - 1;
         const validationResult = Rules.isValidBid(
             bid, 
@@ -332,15 +327,11 @@ class GameRoom {
     startPlaying() {
         this.phase = 'playing';
         
-        // Highest bid
         const maxBid = Math.max(...this.bids);
-        
-        // if the highest bid on more than 1 player 1st player to start if who bidded 1st
         const starterIndex = this.bids.indexOf(maxBid);
         
         this.currentPlayerIndex = starterIndex;
         
-        // Check if multiple players have made the same bid
         const highestBidders = this.bids
             .map((bid, index) => ({ bid, index }))
             .filter(item => item.bid === maxBid);
@@ -356,6 +347,7 @@ class GameRoom {
         this.leadSuit = null;
     }
 
+    // MUUTETTU: playCard palauttaa tiedon onko tikki valmis
     playCard(playerIndex, card) {
         if (this.phase !== 'playing') {
             return { success: false, message: 'Ei pelivaihe' };
@@ -372,13 +364,11 @@ class GameRoom {
             return { success: false, message: 'Sinulla ei ole tätä korttia' };
         }
 
-        // Validating the possible card to play
         const validationResult = Rules.canPlayCard(card, hand, this.leadSuit);
         if (!validationResult.valid) {
             return { success: false, message: validationResult.reason };
         }
 
-        // Remove from the hand
         hand.splice(cardIndex, 1);
 
         if (this.currentTrick.length === 0) {
@@ -387,17 +377,22 @@ class GameRoom {
 
         this.currentTrick.push({ playerIndex, card });
 
-        if (this.currentTrick.length === this.players.length) {
-            this.finishTrick();
-        } else {
+        // MUUTOS: Älä kutsu finishTrick automaattisesti
+        const trickComplete = this.currentTrick.length === this.players.length;
+        
+        if (!trickComplete) {
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
         }
 
-        return { success: true };
+        return { success: true, trickComplete };
     }
 
-    finishTrick() {
-        // Define winner
+    // UUSI: Erillinen metodi tikin viimeistelyyn
+    completeTrick() {
+        if (this.currentTrick.length !== this.players.length) {
+            return { error: 'Tikki ei ole valmis' };
+        }
+        
         const winnerIndex = Rules.getTrickWinner(this.currentTrick, this.leadSuit);
         
         this.tricks[winnerIndex]++;
@@ -409,7 +404,6 @@ class GameRoom {
         this.currentTrick = [];
         this.leadSuit = null;
 
-        // Check if the round is over
         if (this.hands[0].length === 0) {
             this.finishRound();
             return { roundComplete: true, trickWinner, completedTrick };
@@ -418,12 +412,16 @@ class GameRoom {
         return { roundComplete: false, trickWinner, completedTrick };
     }
 
+    // Vanha finishTrick säilytetään yhteensopivuuden vuoksi
+    finishTrick() {
+        return this.completeTrick();
+    }
+
     // Ending round
 
     finishRound() {
         this.phase = 'results';
         
-        // Count score
         const results = ScoreCalculator.calculateRoundResults(
             this.players, 
             this.bids, 
@@ -442,7 +440,7 @@ class GameRoom {
         });
     }
 
-    // Scrores
+    // Scores
 
     getFinalScores() {
         return ScoreCalculator.calculateFinalScores(this.players, this.scores);

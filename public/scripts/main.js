@@ -60,17 +60,25 @@ export function updateGameUI() {
 
 window.addEventListener('load', () => {
     console.log('🎮 Lupaus-peli ladattu (Modulaarinen versio)');
+    
+    const MAX_WAIT_TIME = 10000; // 10 sekuntia max
+    const startTime = Date.now();
+    
     if (typeof io !== 'undefined'){
         initSocket();
     } else {
-        console.log('waiting socket io')
+        console.log('⏳ Odotetaan Socket.io:ta...');
         const waitForSocketIO = setInterval(() => {
             if (typeof io !== 'undefined'){
-                console.log("loaded ")
+                console.log("✅ Socket.io ladattu");
                 clearInterval(waitForSocketIO);
                 initSocket();
+            } else if (Date.now() - startTime > MAX_WAIT_TIME) {
+                console.error('❌ Socket.io ei latautunut ajoissa');
+                clearInterval(waitForSocketIO);
+                showError('Yhteysongelma - päivitä sivu');
             }
-        }, 50)
+        }, 50);
     }
 
     // Enter-button

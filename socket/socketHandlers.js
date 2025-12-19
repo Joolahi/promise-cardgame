@@ -4,59 +4,40 @@
  */
 
 const GameRoom = require('../game/GameRoom');
-//activ game rooms 
 const gameRooms = new Map();
 
-/**
- * Register Socket.IO event handlers
- */
 function registerSocketHandlers(io) {
     io.on('connection', (socket) => {
         console.log('Uusi pelaaja yhdisti:', socket.id);
 
-        // Joinning game
-        
         socket.on('joinGame', ({ playerName, roomId = 'default', sessionId }) => {
             handleJoinGame(socket, io, playerName, roomId, sessionId);
         });
         
-        // Reconnecting to game
         socket.on('reconnectGame', ({ playerName, roomId = 'default', sessionId }) => {
             handleJoinGame(socket, io, playerName, roomId, sessionId);
         });
 
-        // Starting game
-        
         socket.on('startGame', () => {
             handleStartGame(socket, io);
         });
 
-        // Bidding phase
-        
         socket.on('submitBid', ({ bid }) => {
             handleSubmitBid(socket, io, bid);
         });
 
-        // Playing phase
-        
         socket.on('playCard', ({ card }) => {
             handlePlayCard(socket, io, card);
         });
 
-        // End of the round
-        
         socket.on('nextRound', () => {
             handleNextRound(socket, io);
         });
 
-        // Score
-        
         socket.on('getFinalScores', () => {
             handleGetFinalScores(socket);
         });
 
-        // Disconnecting
-        
         socket.on('disconnect', () => {
             handleDisconnect(socket, io);
         });
@@ -72,7 +53,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
 
     const room = gameRooms.get(roomId);
     
-    // Priotity 1: Try to reconnect using sessionId
     if (sessionId) {
         const reconnectResult = room.reconnectPlayerBySession(sessionId, socket.id);
         
@@ -82,7 +62,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
             socket.playerIndex = reconnectResult.playerIndex;
             socket.playerName = reconnectResult.playerName;
             
-            // Send success response
             socket.emit('reconnected', {
                 playerIndex: reconnectResult.playerIndex,
                 message: reconnectResult.wasDisconnected ? 
@@ -90,7 +69,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
                     'Yhteys palautettu'
             });
             
-            // Notify other players
             if (reconnectResult.wasDisconnected) {
                 io.to(roomId).emit('playerReconnected', {
                     playerName: reconnectResult.playerName,
@@ -99,7 +77,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
                 });
             }
             
-            // Send updated game state and cards
             io.to(roomId).emit('gameStateUpdate', room.getGameState());
             
             if (room.phase === 'bidding' || room.phase === 'playing') {
@@ -111,7 +88,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
         }
     }
     
-    // Priority 2: Check if the reconnect by name is possible
     const disconnectedPlayer = Array.from(room.disconnectedPlayers.entries())
         .find(([index, info]) => info.playerName === playerName);
     
@@ -125,7 +101,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
             socket.playerIndex = playerIndex;
             socket.playerName = playerName;
             
-            // Notify all players
             io.to(roomId).emit('playerReconnected', {
                 playerIndex: playerIndex,
                 playerName: reconnectResult.playerName,
@@ -133,7 +108,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
             });
             io.to(roomId).emit('gameStateUpdate', room.getGameState());
             
-            // Send cards back
             socket.emit('receiveHand', room.getPlayerHand(playerIndex));
             
             console.log(`${reconnectResult.playerName} palasi peliin huoneeseen ${roomId}`);
@@ -141,7 +115,6 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
         }
     }
     
-    // Priority 3: Normal join
     const result = room.addPlayer(socket.id, playerName, sessionId);
 
     if (!result.success) {
@@ -154,14 +127,12 @@ function handleJoinGame(socket, io, playerName, roomId, sessionId) {
     socket.playerIndex = result.player.playerIndex;
     socket.playerName = playerName;
 
-    // Send success response
     socket.emit('joinSuccess', {
         playerIndex: result.player.playerIndex,
         playerName: playerName,
         roomId: roomId
     });
 
-    // Send updated game state to all players
     io.to(roomId).emit('gameStateUpdate', room.getGameState());
     
     console.log(`${playerName} liittyi huoneeseen ${roomId} (session: ${sessionId})`);
@@ -178,7 +149,6 @@ function handleStartGame(socket, io) {
         io.to(roomId).emit('gameStarted');
         io.to(roomId).emit('gameStateUpdate', room.getGameState());
         
-        // Send cards to all players
         room.players.forEach((player) => {
             io.to(player.socketId).emit('receiveHand', room.getPlayerHand(player.playerIndex));
         });
@@ -206,6 +176,7 @@ function handleSubmitBid(socket, io, bid) {
     }
 }
 
+// MUUTETTU: handlePlayCard käsittelee 2 sekunnin viiveen
 function handlePlayCard(socket, io, card) {
     const roomId = socket.roomId;
     if (!roomId) return;
@@ -216,14 +187,38 @@ function handlePlayCard(socket, io, card) {
     const result = room.playCard(socket.playerIndex, card);
     
     if (result.success) {
+        // Lähetä pelitila heti - kortit näkyvät pöydällä
         io.to(roomId).emit('gameStateUpdate', room.getGameState());
         
-        // Send updated hands to all players
+        // Päivitä kädet heti
         room.players.forEach((player) => {
             io.to(player.socketId).emit('receiveHand', room.getPlayerHand(player.playerIndex));
         });
         
         console.log(`Pelaaja ${socket.playerIndex} pelasi kortin ${card.rank}${card.suit} huoneessa ${roomId}`);
+        
+        // Jos tikki on täynnä, odota 2 sekuntia ennen viimeistelyä
+        if (result.trickComplete) {
+            console.log('⏱️ Tikki täynnä - odotetaan 2 sekuntia...');
+            
+            setTimeout(() => {
+                const completeResult = room.completeTrick();
+                
+                if (completeResult.error) {
+                    console.error('Virhe tikin viimeistelyssa:', completeResult.error);
+                    return;
+                }
+                
+                console.log(`🏆 Tikin voitti pelaaja ${completeResult.trickWinner}`);
+                
+                // Lähetä päivitetty pelitila (pöytä tyhjä, seuraava pelaaja vuorossa)
+                io.to(roomId).emit('gameStateUpdate', room.getGameState());
+                
+                if (completeResult.roundComplete) {
+                    console.log('🎉 Kierros päättyi!');
+                }
+            }, 2000); // 2 sekunnin viive
+        }
     } else {
         socket.emit('error', { message: result.message });
     }
@@ -238,14 +233,13 @@ function handleNextRound(socket, io) {
 
     if (room.nextRound()) {
         io.to(roomId).emit('gameStateUpdate', room.getGameState());
-        // Send updated hands to all players
+        
         room.players.forEach((player) => {
             io.to(player.socketId).emit('receiveHand', room.getPlayerHand(player.playerIndex));
         });
         
         console.log(`Uusi kierros alkoi huoneessa ${roomId}`);
     } else {
-        // Game finished
         const finalScores = room.getFinalScores();
         io.to(roomId).emit('gameFinished', { scores: finalScores });
         
@@ -275,9 +269,11 @@ function handleDisconnect(socket, io) {
 
     const result = room.removePlayer(socket.id);
 
-    // If the player was in-game and the game is paused, set a timeout for reconnection
     if (result.wasInGame && result.isPaused) {
         const timeoutId = setTimeout(() => {
+            const room = gameRooms.get(roomId);
+            if (!room) return;
+            
             room.handleReconnectTimeout(result.playerIndex);
             io.to(roomId).emit('gameAborted', { 
                 reason: `Peli keskeytettiin: ${result.playerName} ei palannut ajoissa` 
@@ -287,13 +283,11 @@ function handleDisconnect(socket, io) {
             console.log(`Huone ${roomId} poistettu (timeout)`);
         }, room.RECONNECT_TIMEOUT);
         
-        // Save timeoutId for potential reconnection
         const disconnectedInfo = room.disconnectedPlayers.get(result.playerIndex);
         if (disconnectedInfo) {
             disconnectedInfo.timeoutId = timeoutId;
         }
         
-        // Notify other players
         io.to(roomId).emit('playerDisconnected', {
             playerIndex: result.playerIndex,
             playerName: result.playerName,
@@ -303,36 +297,29 @@ function handleDisconnect(socket, io) {
         return;
     }
 
-    // If no players left, delte the room
     if (room.players.length === 0) {
         gameRooms.delete(roomId);
         console.log(`Huone ${roomId} poistettu`);
     } else {
-        // Update remaining players
         io.to(roomId).emit('playerLeft');
         io.to(roomId).emit('gameStateUpdate', room.getGameState());
     }
 }
 
-
 // Helper functions
 
-// get a specific room by ID
 function getRoom(roomId) {
     return gameRooms.get(roomId);
 }
 
-// get all active rooms
 function getAllRooms() {
     return Array.from(gameRooms.values());
 }
 
-// get the count of active rooms
 function getRoomCount() {
     return gameRooms.size;
 }
 
-// clear all rooms (for testing purposes)
 function clearAllRooms() {
     gameRooms.clear();
 }

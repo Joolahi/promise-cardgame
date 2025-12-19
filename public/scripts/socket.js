@@ -25,14 +25,14 @@ export function initSocket() {
             
             document.getElementById('joinForm').classList.add('hidden');
             document.getElementById('lobbyContent').classList.remove('hidden');
-
-            GameState.socket.emit('reconnectGame', {
+            GameState.socket.emit('joinGame', {
                 sessionId: savedSession.sessionId,
                 playerName: savedSession.playerName,
                 roomId: savedSession.roomId
             });
         }
     });
+    
     GameState.socket.on('disconnect', () => {
         console.log('❌ Yhteys katkesi');
         updateConnectionStatus(false);
@@ -45,14 +45,20 @@ export function initSocket() {
         showSuccess(message || 'Tervetuloa takaisin!');
     });
 
-
     GameState.socket.on('reconnectFailed', ({ message }) => {
         console.log('❌ Uudelleenyhdistäminen epäonnistui:', message);
         clearPlayerSession();
         GameState.mySessionId = getOrCreateSessionId();
         
+        GameState.myPlayerIndex = -1;
+        GameState.myPlayerName = '';
+        GameState.gameState = null;
+        GameState.myHand = [];
+        
+        showScreen('lobbyScreen');
         document.getElementById('joinForm').classList.remove('hidden');
         document.getElementById('lobbyContent').classList.add('hidden');
+        
         showError(message || 'Uudelleenyhdistäminen epäonnistui. Liity uudelleen.');
     });
 
@@ -62,19 +68,16 @@ export function initSocket() {
         updateGameUI();
     });
 
-
     GameState.socket.on('receiveHand', (hand) => {
         console.log('🎴 Vastaanotettu kortit');
         GameState.myHand = hand;
         renderHand();
     });
 
-
     GameState.socket.on('gameStarted', () => {
         console.log('🎮 Peli alkoi!');
         showScreen('gameScreen');
     });
-
 
     GameState.socket.on('gameFinished', ({ scores }) => {
         console.log('🏆 Peli päättyi');
@@ -100,7 +103,6 @@ export function initSocket() {
         }
     });
 
-
     GameState.socket.on('gameAborted', ({ reason }) => {
         console.log('⛔ Peli keskeytetty:', reason);
         hidePauseOverlay();
@@ -109,7 +111,6 @@ export function initSocket() {
         setTimeout(() => location.reload(), 1000);
     });
 
-
     GameState.socket.on('joinSuccess', ({ playerIndex, playerName, roomId }) => {
         console.log('✅ Liittyminen onnistui!');
         GameState.myPlayerIndex = playerIndex;
@@ -117,14 +118,12 @@ export function initSocket() {
         savePlayerSession(playerName, roomId);
     });
 
-
     GameState.socket.on('joinError', ({ message }) => {
         console.log('❌ Liittymisvirhe:', message);
         showError(message);
         document.getElementById('joinForm').classList.remove('hidden');
         document.getElementById('lobbyContent').classList.add('hidden');
     });
-
 
     GameState.socket.on('error', ({ message }) => {
         console.log('❌ Virhe:', message);

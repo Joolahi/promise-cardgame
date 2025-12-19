@@ -21,7 +21,7 @@ class ScoreCalculator {
 
             results.push({
                 playerIndex: i,
-                palyerName: players[i].playerName,
+                playerName: players[i].playerName,
                 round: currentRound,
                 bid: bid,
                 tricks: tricksTaken,

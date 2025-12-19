@@ -47,7 +47,7 @@ export function renderGameStatus() {
 
         div.classList.add(statusClass);
 
-        const progress = bid > 0 ? (tricks / bid) * 100 : 0;
+        const progress = bid > 0 ? Math.min((tricks / bid) * 100, 100) : (tricks > 0 ? 100 : 0);
         const progressClass = tricks === bid ? 'success' : tricks < bid ? 'warning' : 'danger';
 
         div.innerHTML = `

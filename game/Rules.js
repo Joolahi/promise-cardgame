@@ -57,6 +57,10 @@ class Rules {
 
         let winningPlay = trick[0];
 
+        if (leadSuit === null){
+            return winningPlay.playerIndex;
+        }
+        
         for (let play of trick) {
             if(play.card.suit === leadSuit) {
                 if(winningPlay.card.suit !== leadSuit || play.card.value > winningPlay.card.value) {
