@@ -34,6 +34,8 @@ class GameRoom {
         this.isPaused = false;
         this.pauseReason = '';
         this.RECONNECT_TIMEOUT = 120000;
+        
+        this.trickProcessing = false; // Estää uusien korttien pelaamisen tikin tyhjennyksen aikana
     }
 
     // Player management
@@ -255,6 +257,7 @@ class GameRoom {
         this.currentTrick = [];
         this.phase = 'bidding';
         this.leadSuit = null;
+        this.trickProcessing = false; // Resetoidaan lukitus
 
         this.hands = Deck.dealCards(this.players.length, this.cardsThisRound);
         if (this.currentRound !== 1) {
@@ -345,12 +348,17 @@ class GameRoom {
         
         this.currentTrick = [];
         this.leadSuit = null;
+        this.trickProcessing = false; 
     }
 
-    // MUUTETTU: playCard palauttaa tiedon onko tikki valmis
     playCard(playerIndex, card) {
         if (this.phase !== 'playing') {
             return { success: false, message: 'Ei pelivaihe' };
+        }
+        
+        // Returnign if trick is being processed
+        if (this.trickProcessing) {
+            return { success: false, message: 'Odota hetki - tikki käsitellään...' };
         }
 
         if (playerIndex !== this.currentPlayerIndex) {
@@ -377,17 +385,17 @@ class GameRoom {
 
         this.currentTrick.push({ playerIndex, card });
 
-        // MUUTOS: Älä kutsu finishTrick automaattisesti
         const trickComplete = this.currentTrick.length === this.players.length;
         
-        if (!trickComplete) {
+        if (trickComplete) {
+            // Lock the playing of new cards until the trick is processed
+            this.trickProcessing = true;
+        } else {
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
         }
 
         return { success: true, trickComplete };
     }
-
-    // UUSI: Erillinen metodi tikin viimeistelyyn
     completeTrick() {
         if (this.currentTrick.length !== this.players.length) {
             return { error: 'Tikki ei ole valmis' };
@@ -403,6 +411,8 @@ class GameRoom {
         
         this.currentTrick = [];
         this.leadSuit = null;
+        
+        this.trickProcessing = false;
 
         if (this.hands[0].length === 0) {
             this.finishRound();
@@ -412,7 +422,6 @@ class GameRoom {
         return { roundComplete: false, trickWinner, completedTrick };
     }
 
-    // Vanha finishTrick säilytetään yhteensopivuuden vuoksi
     finishTrick() {
         return this.completeTrick();
     }

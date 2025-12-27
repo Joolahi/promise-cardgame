@@ -176,7 +176,7 @@ function handleSubmitBid(socket, io, bid) {
     }
 }
 
-// MUUTETTU: handlePlayCard käsittelee 2 sekunnin viiveen
+// Handling 2 seconds delay after trick is complete
 function handlePlayCard(socket, io, card) {
     const roomId = socket.roomId;
     if (!roomId) return;
@@ -186,41 +186,36 @@ function handlePlayCard(socket, io, card) {
 
     const result = room.playCard(socket.playerIndex, card);
     
-    if (result.success) {
-        // Lähetä pelitila heti - kortit näkyvät pöydällä
-        io.to(roomId).emit('gameStateUpdate', room.getGameState());
-        
-        // Päivitä kädet heti
-        room.players.forEach((player) => {
-            io.to(player.socketId).emit('receiveHand', room.getPlayerHand(player.playerIndex));
-        });
-        
-        console.log(`Pelaaja ${socket.playerIndex} pelasi kortin ${card.rank}${card.suit} huoneessa ${roomId}`);
-        
-        // Jos tikki on täynnä, odota 2 sekuntia ennen viimeistelyä
-        if (result.trickComplete) {
-            console.log('⏱️ Tikki täynnä - odotetaan 2 sekuntia...');
-            
-            setTimeout(() => {
-                const completeResult = room.completeTrick();
-                
-                if (completeResult.error) {
-                    console.error('Virhe tikin viimeistelyssa:', completeResult.error);
-                    return;
-                }
-                
-                console.log(`🏆 Tikin voitti pelaaja ${completeResult.trickWinner}`);
-                
-                // Lähetä päivitetty pelitila (pöytä tyhjä, seuraava pelaaja vuorossa)
-                io.to(roomId).emit('gameStateUpdate', room.getGameState());
-                
-                if (completeResult.roundComplete) {
-                    console.log('🎉 Kierros päättyi!');
-                }
-            }, 2000); // 2 sekunnin viive
-        }
-    } else {
+    if (!result.success) {
         socket.emit('error', { message: result.message });
+        return;
+    }
+    
+    io.to(roomId).emit('gameStateUpdate', room.getGameState());
+    
+    room.players.forEach((player) => {
+        io.to(player.socketId).emit('receiveHand', room.getPlayerHand(player.playerIndex));
+    });
+    
+    console.log(`Pelaaja ${socket.playerIndex} pelasi kortin ${card.rank}${card.suit} huoneessa ${roomId}`);
+        if (result.trickComplete) {
+        console.log('⏱️ Tikki täynnä - odotetaan 2 sekuntia...');
+        
+        setTimeout(() => {
+            const completeResult = room.completeTrick();
+            
+            if (completeResult.error) {
+                console.error('Virhe tikin viimeistelyssa:', completeResult.error);
+                return;
+            }
+            
+            console.log(`🏆 Tikin voitti pelaaja ${completeResult.trickWinner}`);
+                        io.to(roomId).emit('gameStateUpdate', room.getGameState());
+            
+            if (completeResult.roundComplete) {
+                console.log('🎉 Kierros päättyi!');
+            }
+        }, 2000); // 2 second delay
     }
 }
 
