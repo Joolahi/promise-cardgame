@@ -6,6 +6,19 @@ import { GameState } from '../game/state.js';
 import { escapeHtml } from '../utils.js';
 
 export function updateLobby() {
+    // Päivitetään huoneen tiedot
+    if (GameState.gameState) {
+        const roomNameEl = document.getElementById('lobbyRoomName');
+        const roomCodeEl = document.getElementById('lobbyRoomCode');
+        
+        if (roomNameEl && GameState.gameState.roomName) {
+            roomNameEl.textContent = GameState.gameState.roomName;
+        }
+        if (roomCodeEl && GameState.gameState.roomId) {
+            roomCodeEl.textContent = GameState.gameState.roomId;
+        }
+    }
+
     const slotsContainer = document.getElementById('playerSlots');
     slotsContainer.innerHTML = '';
 

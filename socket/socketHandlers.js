@@ -10,8 +10,16 @@ function registerSocketHandlers(io) {
     io.on('connection', (socket) => {
         console.log('Uusi pelaaja yhdisti:', socket.id);
 
-        socket.on('joinGame', ({ playerName, roomId = 'default', sessionId }) => {
-            handleJoinGame(socket, io, playerName, roomId, sessionId);
+        socket.on('createRoom', ({ roomName, password, maxPlayers, minPlayers, playerName, sessionId }) => {
+            handleCreateRoom(socket, io, roomName, password, maxPlayers, minPlayers, playerName, sessionId);
+        });
+
+        socket.on('getRoomList', () => {
+            handleGetRoomList(socket);
+        });
+
+        socket.on('joinGame', ({ playerName, roomId = 'default', sessionId, password }) => {
+            handleJoinGame(socket, io, playerName, roomId, sessionId, password);
         });
         
         socket.on('reconnectGame', ({ playerName, roomId = 'default', sessionId }) => {
@@ -46,12 +54,80 @@ function registerSocketHandlers(io) {
 
 // Event handlers
 
-function handleJoinGame(socket, io, playerName, roomId, sessionId) {
+function handleCreateRoom(socket, io, roomName, password, maxPlayers, minPlayers, playerName, sessionId) {
+    // Luodaan uniikki huone-ID
+    const roomId = generateRoomId();
+    
+    const config = {
+        roomName: roomName || `${playerName}n huone`,
+        password: password || null,
+        maxPlayers: maxPlayers || 5,
+        minPlayers: minPlayers || 3,
+        createdBy: playerName
+    };
+    
+    const room = new GameRoom(roomId, config);
+    gameRooms.set(roomId, room);
+    
+    console.log(`🏠 Luotiin uusi huone "${roomName}" (ID: ${roomId})`);
+    
+    // Liitetään luoja automaattisesti huoneeseen
+    const result = room.addPlayer(socket.id, playerName, sessionId);
+    
+    if (result.success) {
+        socket.join(roomId);
+        socket.roomId = roomId;
+        socket.playerIndex = result.player.playerIndex;
+        socket.playerName = playerName;
+        
+        socket.emit('roomCreated', {
+            roomId: roomId,
+            roomName: roomName,
+            playerIndex: result.player.playerIndex
+        });
+        
+        socket.emit('joinSuccess', {
+            playerIndex: result.player.playerIndex,
+            playerName: playerName,
+            roomId: roomId
+        });
+        
+        io.to(roomId).emit('gameStateUpdate', room.getGameState());
+        
+        console.log(`${playerName} loi ja liittyi huoneeseen ${roomId}`);
+    }
+}
+
+function handleGetRoomList(socket) {
+    const rooms = Array.from(gameRooms.values())
+        .filter(room => !room.gameStarted) // Näytetään vain huoneet joissa peli ei ole alkanut
+        .map(room => ({
+            roomId: room.roomId,
+            roomName: room.roomName,
+            isPrivate: room.isPrivate,
+            playerCount: room.players.length,
+            maxPlayers: room.maxPlayers,
+            minPlayers: room.minPlayers,
+            createdBy: room.createdBy
+        }));
+    
+    socket.emit('roomList', { rooms });
+}
+
+function handleJoinGame(socket, io, playerName, roomId, sessionId, password) {
+    // Tarkistetaan onko huone olemassa
     if (!gameRooms.has(roomId)) {
-        gameRooms.set(roomId, new GameRoom(roomId));
+        socket.emit('joinError', { message: 'Huonetta ei löydy' });
+        return;
     }
 
     const room = gameRooms.get(roomId);
+    
+    // Tarkistetaan salasana
+    if (room.isPrivate && !room.verifyPassword(password)) {
+        socket.emit('joinError', { message: 'Väärä salasana' });
+        return;
+    }
     
     if (sessionId) {
         const reconnectResult = room.reconnectPlayerBySession(sessionId, socket.id);
@@ -302,6 +378,27 @@ function handleDisconnect(socket, io) {
 }
 
 // Helper functions
+
+function generateRoomId() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let roomId;
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    do {
+        roomId = '';
+        for (let i = 0; i < 6; i++) {
+            roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        attempts++;
+    } while (gameRooms.has(roomId) && attempts < maxAttempts);
+    
+    if (attempts >= maxAttempts) {
+        roomId = `ROOM_${Date.now()}`;
+    }
+    
+    return roomId;
+}
 
 function getRoom(roomId) {
     return gameRooms.get(roomId);

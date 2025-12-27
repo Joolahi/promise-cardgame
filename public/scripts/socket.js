@@ -23,13 +23,14 @@ export function initSocket() {
             console.log('🔄 Yritetään automaattista uudelleenyhdistämistä...');
             console.log(`   Pelaaja: ${savedSession.playerName}`);
             
-            document.getElementById('joinForm').classList.add('hidden');
-            document.getElementById('lobbyContent').classList.remove('hidden');
             GameState.socket.emit('joinGame', {
                 sessionId: savedSession.sessionId,
                 playerName: savedSession.playerName,
                 roomId: savedSession.roomId
             });
+        } else {
+            // Ei tallennettua sessiota, näytetään päävalikko
+            showScreen('menuScreen');
         }
     });
     
@@ -55,9 +56,7 @@ export function initSocket() {
         GameState.gameState = null;
         GameState.myHand = [];
         
-        showScreen('lobbyScreen');
-        document.getElementById('joinForm').classList.remove('hidden');
-        document.getElementById('lobbyContent').classList.add('hidden');
+        showScreen('menuScreen');
         
         showError(message || 'Uudelleenyhdistäminen epäonnistui. Liity uudelleen.');
     });
@@ -121,40 +120,25 @@ export function initSocket() {
     GameState.socket.on('joinError', ({ message }) => {
         console.log('❌ Liittymisvirhe:', message);
         showError(message);
-        document.getElementById('joinForm').classList.remove('hidden');
-        document.getElementById('lobbyContent').classList.add('hidden');
+        showScreen('menuScreen');
     });
 
     GameState.socket.on('error', ({ message }) => {
         console.log('❌ Virhe:', message);
         showError(message);
     });
-}
 
-export function joinGame() {
-    const nameInput = document.getElementById('playerName');
-    const playerName = nameInput.value.trim();
-
-    if (!playerName) {
-        showError('Syötä nimesi ensin!');
-        return;
-    }
-
-    if (playerName.length > 20) {
-        showError('Nimi voi olla enintään 20 merkkiä');
-        return;
-    }
-
-    GameState.myPlayerName = playerName;
-    const roomId = 'default';
-    GameState.socket.emit('joinGame', {
-        playerName,
-        roomId,
-        sessionId: GameState.mySessionId
+    GameState.socket.on('roomCreated', ({ roomId, roomName, playerIndex }) => {
+        console.log(`✅ Huone luotu: ${roomName} (${roomId})`);
+        GameState.myPlayerIndex = playerIndex;
     });
 
-    document.getElementById('joinForm').classList.add('hidden');
-    document.getElementById('lobbyContent').classList.remove('hidden');
+    GameState.socket.on('roomList', ({ rooms }) => {
+        console.log('📋 Huonelista päivitetty:', rooms.length);
+        import('./ui/menu.js').then(({ renderRoomList }) => {
+            renderRoomList(rooms);
+        });
+    });
 }
 
 export function startGame() {

@@ -3,8 +3,20 @@
  */
 
 import { GameState, showPhase, updateGameInfo, updatePhaseIndicator } from './game/state.js';
-import { initSocket, joinGame, startGame, submitBid, nextRound, leaveGame, playAgain } from './socket.js';
+import { initSocket, startGame, submitBid, nextRound, leaveGame, playAgain } from './socket.js';
 import { updateLobby } from './ui/lobby.js';
+import { 
+    showMainMenu, 
+    showCreateRoomForm, 
+    showJoinRoomForm, 
+    backToMainMenu, 
+    createRoom, 
+    joinRoomById, 
+    joinRoomByCode, 
+    promptPasswordAndJoin, 
+    togglePasswordField, 
+    refreshRoomList 
+} from './ui/menu.js';
 import { renderBiddingArea } from './ui/bidding.js';
 import { renderGameStatus } from './ui/playing.js';
 import { renderResults } from './ui/results.js';
@@ -23,19 +35,15 @@ export function updateGameUI() {
         hidePauseOverlay();
     }
 
-
+    // Jos peli ei ole alkanut, näytetään lobby
     if (GameState.gameState.phase === 'waiting') {
-        document.getElementById('joinForm').classList.add('hidden');
-        document.getElementById('lobbyContent').classList.remove('hidden');
         showScreen('lobbyScreen');
         updateLobby();
         return;
     }
 
-
+    // Jos peli on alkanut, näytetään pelinäkymä
     if (GameState.gameState.gameStarted) {
-        document.getElementById('joinForm').classList.add('hidden');
-        document.getElementById('lobbyContent').classList.add('hidden');
         showScreen('gameScreen');
         
         updateGameInfo();
@@ -80,13 +88,6 @@ window.addEventListener('load', () => {
             }
         }, 50);
     }
-
-    // Enter-button
-    document.getElementById('playerName').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            joinGame();
-        }
-    });
 });
 
 // beforeunload - session stays
@@ -98,12 +99,29 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-window.joinGame = joinGame;
 window.startGame = startGame;
 window.submitBid = submitBid;
 window.nextRound = nextRound;
 window.leaveGame = leaveGame;
 window.playAgain = playAgain;
+
+// Menu funktiot
+window.showMainMenu = showMainMenu;
+window.showCreateRoomForm = showCreateRoomForm;
+window.showJoinRoomForm = showJoinRoomForm;
+window.backToMainMenu = backToMainMenu;
+window.createRoom = createRoom;
+window.joinRoomById = joinRoomById;
+window.joinRoomByCode = joinRoomByCode;
+window.promptPasswordAndJoin = promptPasswordAndJoin;
+window.togglePasswordField = togglePasswordField;
+window.refreshRoomList = refreshRoomList;
+window.leaveRoom = () => {
+    if (confirm('Haluatko varmasti poistua huoneesta?')) {
+        clearPlayerSession();
+        location.reload();
+    }
+};
 
 // Debug-mode
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {

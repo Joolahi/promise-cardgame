@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Öyhy</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="menu.css">
 </head>
 <body>
     <!-- Connetcion status -->
@@ -19,34 +20,198 @@
             <p class="subtitle">Korttipeli</p>
         </header>
 
-        <!-- Lobby -->
-        <div id="lobbyScreen" class="screen">
-            <div class="lobby-container">
-                <h2 class="screen-title">Odotushuone</h2>
+        <!-- Päävalikko -->
+        <div id="menuScreen" class="screen">
+            <div class="menu-container">
+                <h2 class="screen-title">Tervetuloa!</h2>
                 
                 <div id="errorMessage" class="error-message hidden"></div>
 
-                <div id="joinForm" class="join-form">
+                <div id="menuMain" class="menu-main">
+                    <div class="menu-buttons">
+                        <button class="btn btn-primary btn-large" onclick="showCreateRoomForm()">
+                            <span class="btn-icon">🏠</span>
+                            <div>
+                                <div class="btn-title">Luo huone</div>
+                                <div class="btn-subtitle">Aloita uusi peli</div>
+                            </div>
+                        </button>
+                        
+                        <button class="btn btn-success btn-large" onclick="showJoinRoomForm()">
+                            <span class="btn-icon">🚪</span>
+                            <div>
+                                <div class="btn-title">Liity huoneeseen</div>
+                                <div class="btn-subtitle">Selaa avoimia pelejä</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Huoneen luonti -->
+                <div id="createRoomForm" class="hidden">
+                    <button class="btn btn-secondary btn-back" onclick="backToMainMenu()">
+                        ← Takaisin
+                    </button>
+                    
+                    <h3 class="section-title">Luo uusi huone</h3>
+                    
                     <div class="form-group">
-                        <label for="playerName">
+                        <label for="creatorName">
                             <span class="label-icon">👤</span>
                             Nimesi:
                         </label>
                         <input 
                             type="text" 
-                            id="playerName" 
+                            id="creatorName" 
                             placeholder="Syötä nimesi" 
                             maxlength="20"
                             autocomplete="off"
                         >
                     </div>
-                    <button class="btn btn-primary" onclick="joinGame()">
-                        <span class="btn-icon">🚪</span>
-                        Liity peliin
+
+                    <div class="form-group">
+                        <label for="newRoomName">
+                            <span class="label-icon">🏠</span>
+                            Huoneen nimi:
+                        </label>
+                        <input 
+                            type="text" 
+                            id="newRoomName" 
+                            placeholder="Esim. Iltapeli" 
+                            maxlength="30"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="roomHasPassword" onchange="togglePasswordField()">
+                            <span>Salasanasuojattu huone</span>
+                        </label>
+                    </div>
+
+                    <div id="passwordFieldContainer" class="form-group hidden">
+                        <label for="newRoomPassword">
+                            <span class="label-icon">🔒</span>
+                            Salasana:
+                        </label>
+                        <input 
+                            type="password" 
+                            id="newRoomPassword" 
+                            placeholder="Salasana" 
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newRoomMinPlayers">
+                                <span class="label-icon">👥</span>
+                                Min. pelaajat:
+                            </label>
+                            <select id="newRoomMinPlayers">
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newRoomMaxPlayers">
+                                <span class="label-icon">👥</span>
+                                Max. pelaajat:
+                            </label>
+                            <select id="newRoomMaxPlayers">
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5" selected>5</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="createRoom()">
+                        <span class="btn-icon">✨</span>
+                        Luo huone
                     </button>
                 </div>
 
-                <div id="lobbyContent" class="hidden">
+                <!-- Huoneeseen liittyminen -->
+                <div id="joinRoomForm" class="hidden">
+                    <button class="btn btn-secondary btn-back" onclick="backToMainMenu()">
+                        ← Takaisin
+                    </button>
+                    
+                    <h3 class="section-title">Liity huoneeseen</h3>
+                    
+                    <div class="form-group">
+                        <label for="joinPlayerName">
+                            <span class="label-icon">👤</span>
+                            Nimesi:
+                        </label>
+                        <input 
+                            type="text" 
+                            id="joinPlayerName" 
+                            placeholder="Syötä nimesi" 
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="join-options">
+                        <div class="join-option">
+                            <h4>Liity koodilla</h4>
+                            <div class="form-group">
+                                <input 
+                                    type="text" 
+                                    id="roomCode" 
+                                    placeholder="HUONE-KOODI" 
+                                    maxlength="10"
+                                    autocomplete="off"
+                                    style="text-transform: uppercase;"
+                                >
+                            </div>
+                            <button class="btn btn-primary" onclick="joinRoomByCode()">
+                                Liity
+                            </button>
+                        </div>
+
+                        <div class="divider">
+                            <span>TAI</span>
+                        </div>
+
+                        <div class="join-option">
+                            <div class="room-list-header">
+                                <h4>Avoimet huoneet</h4>
+                                <button class="btn btn-secondary btn-small" onclick="refreshRoomList()">
+                                    🔄 Päivitä
+                                </button>
+                            </div>
+                            <div id="roomList" class="room-list">
+                                <!-- Huoneet täytetään JavaScriptillä -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby -->
+        <div id="lobbyScreen" class="screen hidden">
+            <div class="lobby-container">
+                <div class="room-info-header">
+                    <div>
+                        <h2 class="screen-title" id="lobbyRoomName">Odotushuone</h2>
+                        <p class="room-code">Huoneen koodi: <span id="lobbyRoomCode">-</span></p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="leaveRoom()">
+                        Poistu huoneesta
+                    </button>
+                </div>
+                
+                <div id="errorMessage" class="error-message hidden"></div>
+
+                <div id="lobbyContent">
                     <div class="info-banner">
                         <span class="info-icon">ℹ️</span>
                         Peli alkaa kun 3-5 pelaajaa on liittynyt

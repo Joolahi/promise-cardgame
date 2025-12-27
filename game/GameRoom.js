@@ -9,6 +9,11 @@ const ScoreCalculator = require('./ScoreCalculator');
 class GameRoom {
     constructor(roomId, config = {}) {
         this.roomId = roomId;
+        this.roomName = config.roomName || `Huone ${roomId}`;
+        this.password = config.password || null;
+        this.isPrivate = !!config.password;
+        this.createdBy = config.createdBy || null;
+        this.createdAt = Date.now();
         this.maxPlayers = config.maxPlayers || 5;
         this.minPlayers = config.minPlayers || 3;
         this.startCards = config.startCards || 10;
@@ -197,6 +202,12 @@ class GameRoom {
 
     getPlayerBySocketId(socketId) {
         return this.players.find(p => p.socketId === socketId);
+    }
+
+    // Password verification
+    verifyPassword(password) {
+        if (!this.isPrivate) return true;
+        return this.password === password;
     }
 
     // Starting game
@@ -464,6 +475,9 @@ class GameRoom {
     getGameState() {
         return {
             roomId: this.roomId,
+            roomName: this.roomName,
+            isPrivate: this.isPrivate,
+            createdBy: this.createdBy,
             players: this.players.map(p => ({
                 playerName: p.playerName,
                 playerIndex: p.playerIndex,
