@@ -35,14 +35,12 @@ export function updateGameUI() {
         hidePauseOverlay();
     }
 
-    // Jos peli ei ole alkanut, näytetään lobby
     if (GameState.gameState.phase === 'waiting') {
         showScreen('lobbyScreen');
         updateLobby();
         return;
     }
 
-    // Jos peli on alkanut, näytetään pelinäkymä
     if (GameState.gameState.gameStarted) {
         showScreen('gameScreen');
         

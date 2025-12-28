@@ -68,7 +68,7 @@ export function showSuccess(message) {
 
 
 export function showScreen(screenId) {
-    const screens = ['lobbyScreen', 'gameScreen', 'finalScreen'];
+    const screens = ['menuScreen', 'lobbyScreen', 'gameScreen', 'finalScreen'];
     screens.forEach(id => {
         const screen = document.getElementById(id);
         if (id === screenId) {
